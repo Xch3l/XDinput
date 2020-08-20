@@ -130,10 +130,8 @@ BOOL APIENTRY DllMain(HMODULE hInst, DWORD dwReason, LPVOID lpReserved) {
         delete xdinput;
       }
 
-      if(hDinputDll) {
+      if(hDinputDll)
         FreeLibrary(hDinputDll);
-        delete hDinputDll;
-      }
 
       delete hDevStat;
       break;
