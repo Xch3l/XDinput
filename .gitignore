@@ -1,0 +1,9 @@
+*.exp
+*.ilk
+*.lib
+*.suo
+*.opensdf
+*.sdf
+ipch/
+XDinput/Debug/
+XDinput/Release/
