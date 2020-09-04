@@ -80,15 +80,19 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DeviceStatus.h">
-      <FileType>CppForm</FileType>
-    </ClInclude>
+    <ClInclude Include="DeviceStatus.h" />
     <ClInclude Include="dll.h" />
     <ClInclude Include="JoyConfig.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="StringDefs.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="XDinput.h" />
+    <ClInclude Include="XDinput1.h" />
+    <ClInclude Include="XDinput2.h" />
+    <ClInclude Include="XDinput7.h" />
     <ClInclude Include="XDInputDevice.h" />
+    <ClInclude Include="XDinputDeviceLegacy.h" />
+    <ClInclude Include="XDinputConstantForceEffect.h" />
     <ClInclude Include="XDinputEffect.h" />
   </ItemGroup>
   <ItemGroup>
@@ -107,7 +111,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="XDinput.cpp" />
+    <ClCompile Include="XDinput1.cpp" />
+    <ClCompile Include="XDinput2.cpp" />
+    <ClCompile Include="XDinput7.cpp" />
     <ClCompile Include="XDInputDevice.cpp" />
+    <ClCompile Include="XDinputDeviceLegacy.cpp" />
+    <ClCompile Include="XDinputConstantForceEffect.cpp" />
     <ClCompile Include="XDinputEffect.cpp" />
   </ItemGroup>
   <ItemGroup>

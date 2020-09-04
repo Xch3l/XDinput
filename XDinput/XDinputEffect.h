@@ -1,5 +1,4 @@
 #pragma once
-#include <XInput.h>
 #include "dinput.h"
 
 class XDinputEffect : public IDirectInputEffect {
@@ -10,23 +9,29 @@ class XDinputEffect : public IDirectInputEffect {
     ULONG WINAPI Release();
 
     // IDirectInputEffect implements
-    HRESULT WINAPI Initialize(HINSTANCE, DWORD, REFGUID);
-    HRESULT WINAPI GetEffectGuid(LPGUID);
-    HRESULT WINAPI GetParameters(LPDIEFFECT,DWORD);
-    HRESULT WINAPI SetParameters(LPCDIEFFECT,DWORD);
-    HRESULT WINAPI Start(DWORD,DWORD);
-    HRESULT WINAPI Stop();
-    HRESULT WINAPI GetEffectStatus(LPDWORD);
-    HRESULT WINAPI Download();
-    HRESULT WINAPI Unload();
-    HRESULT WINAPI Escape(LPDIEFFESCAPE);
+    virtual HRESULT WINAPI Initialize(HINSTANCE, DWORD, REFGUID);
+    virtual HRESULT WINAPI GetEffectGuid(LPGUID);
+    virtual HRESULT WINAPI GetParameters(LPDIEFFECT,DWORD);
+    virtual HRESULT WINAPI SetParameters(LPCDIEFFECT,DWORD);
+    virtual HRESULT WINAPI Start(DWORD,DWORD);
+    virtual HRESULT WINAPI Stop();
+    virtual HRESULT WINAPI GetEffectStatus(LPDWORD);
+    virtual HRESULT WINAPI Download();
+    virtual HRESULT WINAPI Unload();
+    virtual HRESULT WINAPI Escape(LPDIEFFESCAPE);
 
     // This class
-    XDinputEffect(int);
-    virtual ~XDinputEffect();
+    XDinputEffect(REFGUID, const CHAR*, const WCHAR*);
+    virtual ~XDinputEffect(void);
+    DIEFFECT EffectParameters;
+    BOOL Playing;
+    BOOL Enabled;
+
+    static const int Version = 0x20200825;
 
   private:
-    XINPUT_VIBRATION vibration;
-    int thisIndex;
+    GUID  Guid;
+    CHAR  AnsiName[MAX_PATH];
+    WCHAR WideName[MAX_PATH];
 };
 

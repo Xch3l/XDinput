@@ -33,10 +33,28 @@
     <ClInclude Include="dll.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="XDinputEffect.h">
+    <ClInclude Include="XDinputDeviceLegacy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DeviceStatus.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XDinput7.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XDinput2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XDinput1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StringDefs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XDinputConstantForceEffect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XDinputEffect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -56,10 +74,25 @@
     <ClCompile Include="XDInputDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="XDinputEffect.cpp">
+    <ClCompile Include="DeviceStatus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DeviceStatus.cpp">
+    <ClCompile Include="XDinputDeviceLegacy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XDinput7.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XDinput2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XDinput1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XDinputConstantForceEffect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XDinputEffect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

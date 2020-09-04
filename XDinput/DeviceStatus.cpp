@@ -15,19 +15,25 @@ const WCHAR DevStatClassName[] = L"XDinputDeviceStatus";
 HWND 
   tbLT, tbRT, tbLM, tbRM,
   cbA, cbB, cbX, cbY, cbBack, cbStart, cbLB, cbRB, cbLT, cbRT, cbLS, cbRS,
-  cbDUP, cbDLT, cbDDN, cbDRT, pLStick, pRStick, pController
+  cbDUP, cbDLT, cbDDN, cbDRT,
+  pText, pLStick, pRStick, pController, pBattery
 ;
 LONG leftMotor[4] = {0};
 LONG rightMotor[4] = {0};
 
-int selectedPlayer = 0;
-BYTE connectedPlayers = 0;
+int selectedPlayer = 0, lastSelectedPlayer = 4;
+BYTE connectedPlayers = 0, lastConnectedPlayers = 255;
 XINPUT_STATE status[4];
+DWORD lastPacketNumber = -1;
 
 ///////////////////////////////////////////////////////////////////////
 
 HRESULT UpdateStatus(void) {
+  int index = selectedPlayer & 3;
+  WCHAR label[25] = {0};
   XINPUT_STATE s;
+
+  // Reset status flags
   connectedPlayers = 0;
 
   for(int i = 0; i < 4; i++) {
@@ -39,33 +45,52 @@ HRESULT UpdateStatus(void) {
     status[i] = s;
   }
 
-  s = status[selectedPlayer & 3];
+  // Update emblem if a controller has been [dis]connected or a selection changed
+  if(lastSelectedPlayer != selectedPlayer || lastConnectedPlayers != connectedPlayers) {
+    lastSelectedPlayer = selectedPlayer;
+    lastConnectedPlayers = connectedPlayers;
+    RedrawWindow(pController, NULL, NULL, RDW_INVALIDATE);
 
-  SendMessage(tbLT, TBM_SETPOS, TRUE, s.Gamepad.bLeftTrigger);
-  SendMessage(tbRT, TBM_SETPOS, TRUE, s.Gamepad.bRightTrigger);
-  SendMessage(tbLM, TBM_SETPOS, TRUE, leftMotor[selectedPlayer & 3]);
-  SendMessage(tbRM, TBM_SETPOS, TRUE, rightMotor[selectedPlayer & 3]);
+    // update the message too while we're at it
+    if(connectedPlayers & (1 << index))
+      swprintf_s(label, 25, L"#%d - Connected", index + 1);
+    else
+      swprintf_s(label, 25, L"#%d - Disconnected", index + 1);
+    SetWindowTextW(pText, label);
+  }
 
-  SendMessage(cbDUP, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbDLT, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbDDN, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbDRT, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbA, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_A ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbB, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_B ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbX, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_X ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbY, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_Y ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbBack, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_BACK ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbStart, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_START ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbLB, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbRB, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbLS, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbRS, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbLT, BM_SETCHECK, (s.Gamepad.bLeftTrigger >= 0xC0 ? BST_CHECKED : BST_UNCHECKED), 0);
-  SendMessage(cbRT, BM_SETCHECK, (s.Gamepad.bRightTrigger >= 0xC0 ? BST_CHECKED : BST_UNCHECKED), 0);
 
-  RedrawWindow(pLStick, NULL, NULL, RDW_INVALIDATE);
-  RedrawWindow(pRStick, NULL, NULL, RDW_INVALIDATE);
-  RedrawWindow(pController, NULL, NULL, RDW_INVALIDATE);
+  // Update status preview
+  s = status[index];
+  if(lastPacketNumber != s.dwPacketNumber) { // ...if we have an update from XInput
+    lastPacketNumber = s.dwPacketNumber;
+
+    SendMessage(tbLT, TBM_SETPOS, TRUE, s.Gamepad.bLeftTrigger);
+    SendMessage(tbRT, TBM_SETPOS, TRUE, s.Gamepad.bRightTrigger);
+    SendMessage(tbLM, TBM_SETPOS, TRUE, -leftMotor[selectedPlayer & 3]);
+    SendMessage(tbRM, TBM_SETPOS, TRUE, rightMotor[selectedPlayer & 3]);
+
+    SendMessage(cbDUP,   BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbDLT,   BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbDDN,   BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbDRT,   BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbA,     BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_A ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbB,     BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_B ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbX,     BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_X ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbY,     BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_Y ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbBack,  BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_BACK ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbStart, BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_START ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbLB,    BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbRB,    BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbLS,    BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbRS,    BM_SETCHECK, (s.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbLT,    BM_SETCHECK, (s.Gamepad.bLeftTrigger >= 0xC0 ? BST_CHECKED : BST_UNCHECKED), 0);
+    SendMessage(cbRT,    BM_SETCHECK, (s.Gamepad.bRightTrigger >= 0xC0 ? BST_CHECKED : BST_UNCHECKED), 0);
+
+    RedrawWindow(pLStick, NULL, NULL, RDW_INVALIDATE);
+    RedrawWindow(pRStick, NULL, NULL, RDW_INVALIDATE);
+    RedrawWindow(pBattery, NULL, NULL, RDW_INVALIDATE);
+  }
 
   return 0;
 }
@@ -74,17 +99,19 @@ HRESULT UpdateStatus(void) {
 
 DWORD WINAPI ThreadProc(LPVOID lpvParam) {
   HWND hwnd = (HWND) lpvParam;
-  BOOL bMsg;
+  DWORD dwMsgResult;
   MSG m;
 
   ZeroMemory(&m, sizeof(MSG));
-  //ShowWindow(hwnd, SW_NORMAL);
+  ShowWindow(hwnd, SW_NORMAL);
+  SetTimer(hwnd, (int) hwnd, 1000 / 30, nullptr);
 
-  SetTimer(hwnd, 0, 1000 / 30, nullptr);
-
-  while((bMsg = GetMessage(&m, hwnd, 0, 0)) != 0) {
-    if(bMsg == -1)
+  while((dwMsgResult = GetMessage(&m, hwnd, 0, 0)) != 0) {
+    if(dwMsgResult == -1) {
+      dwMsgResult = GetLastError();
+      printf("ThreadProc %08X error 0x%08X\n", (int) hwnd, dwMsgResult);
       continue;
+    }
 
     TranslateMessage(&m);
     DispatchMessage(&m);
@@ -99,22 +126,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
       return 0;
 
     case WM_DESTROY:
-      KillTimer(hwnd, 0);
+      KillTimer(hwnd, (int) hwnd);
       PostQuitMessage(0);
       return 0;
 
     case WM_TIMER:
-      UpdateStatus();
+      if(wParam == (int) hwnd)
+        UpdateStatus();
       return 1;
 
     case WM_DRAWITEM: {
       LPDRAWITEMSTRUCT ds = (LPDRAWITEMSTRUCT) lParam;
       HDC hdc = ds->hDC;
-      int ww = ds->rcItem.right - ds->rcItem.left;
-      int hh = ds->rcItem.bottom - ds->rcItem.top;
-      int cx = ds->rcItem.left + (ww / 2);
-      int cy = ds->rcItem.top + (hh / 2);
-      int x, y;
+      int x = ds->rcItem.left, y = ds->rcItem.top;
+      int ww = ds->rcItem.right - x;
+      int hh = ds->rcItem.bottom - y;
 
       HGDIOBJ oldStroke = SelectObject(hdc, GetStockObject(DC_PEN));
       HGDIOBJ oldFill = SelectObject(hdc, GetStockObject(DC_BRUSH));
@@ -145,28 +171,84 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
           StrokeAndFillPath(hdc);
         }
 
-        // Draw X emblem
+        // Draw XBOX "emblem"
         SelectObject(hdc, GetStockObject(BLACK_PEN));
         SelectObject(hdc, GetStockObject(GRAY_BRUSH));
         Ellipse(hdc, ds->rcItem.left + 4, ds->rcItem.top + 4, ds->rcItem.right - 4, ds->rcItem.bottom - 4);
-      } else {
+      } else
+      if(ds->hwndItem == pBattery) {
+        RECT r;
+
+        // clear background
+        FillRect(hdc, &ds->rcItem, (HBRUSH) (COLOR_BTNFACE + 1));
+
+        // ask the controller for its battery state
+        XINPUT_BATTERY_INFORMATION batt;
+        ZeroMemory(&batt, sizeof(XINPUT_BATTERY_INFORMATION));
+        DWORD br = XInputGetBatteryInformation(selectedPlayer, BATTERY_DEVTYPE_GAMEPAD, &batt);
+
+        if(br == ERROR_SUCCESS && batt.BatteryType > BATTERY_TYPE_WIRED) {
+          // battery body
+          r.left = ds->rcItem.left;
+          r.top  = ds->rcItem.top;
+          r.right = ds->rcItem.right - 1;
+          r.bottom = ds->rcItem.bottom;
+          FillRect(hdc, &r, (HBRUSH) GetStockObject(BLACK_BRUSH));
+
+          // battery tip
+          r.left = ds->rcItem.left + 27;
+          r.top  = ds->rcItem.top + 6;
+          r.right = ds->rcItem.right - 29;
+          r.bottom = ds->rcItem.bottom + 14;
+          FillRect(hdc, &r, (HBRUSH) GetStockObject(BLACK_BRUSH));
+
+          // battery bars
+          r.top = y + 4;
+          r.bottom = y + 16;
+
+          if(batt.BatteryLevel >= BATTERY_LEVEL_LOW) {
+            r.left = x + 5;
+            r.right = x + 10;
+            FillRect(hdc, &r, (HBRUSH) GetStockObject(BLACK_BRUSH));
+          }
+
+          if(batt.BatteryLevel >= BATTERY_LEVEL_MEDIUM) {
+            r.left = x + 12;
+            r.right = x + 17;
+            FillRect(hdc, &r, (HBRUSH) GetStockObject(BLACK_BRUSH));
+          }
+
+          if(batt.BatteryLevel >= BATTERY_LEVEL_FULL) {
+            r.left = x + 19;
+            r.right = x + 24;
+            FillRect(hdc, &r, (HBRUSH) GetStockObject(BLACK_BRUSH));
+          }
+        }
+      }else {
         XINPUT_STATE s = status[selectedPlayer & 3];
         FillRect(hdc, &ds->rcItem, (HBRUSH) (COLOR_WINDOW + 1));
 
         SelectObject(hdc, GetStockObject(BLACK_PEN));
         SelectObject(hdc, GetStockObject(BLACK_BRUSH));
 
-        MoveToEx(hdc, ds->rcItem.left, ds->rcItem.top, NULL);
+        // draw border
+        MoveToEx(hdc, x, y, NULL);
         LineTo(hdc, ds->rcItem.right - 1, ds->rcItem.top);
         LineTo(hdc, ds->rcItem.right - 1, ds->rcItem.bottom - 1);
         LineTo(hdc, ds->rcItem.left, ds->rcItem.bottom - 1);
         LineTo(hdc, ds->rcItem.left, ds->rcItem.top);
 
-        MoveToEx(hdc, cx, cy - 5, NULL);
-        LineTo(hdc, cx, cy + 6);
-        MoveToEx(hdc, cx - 5, cy, NULL);
-        LineTo(hdc, cx + 6, cy);
+        // get box center
+        x = x + (ww / 2);
+        y = y + (hh / 2);
 
+        // draw center +
+        MoveToEx(hdc, x, y - 5, NULL);
+        LineTo(hdc, x, y + 6);
+        MoveToEx(hdc, x - 5, y, NULL);
+        LineTo(hdc, x + 6, y);
+
+        // get stick position depending on hwnd
         if(ds->hwndItem == pLStick) {
           x = s.Gamepad.sThumbLX;
           y = -s.Gamepad.sThumbLY;
@@ -175,6 +257,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
           y = -s.Gamepad.sThumbRY;
         }
 
+        // draw it
         x = (int) (ds->rcItem.left + lerp(50, 100, x / 32768.0F) + 1);
         y = (int) (ds->rcItem.top + lerp(50, 100, y / 32768.0F) + 1);
         Ellipse(hdc, x - 5, y - 5, x + 5, y + 5);
@@ -261,21 +344,29 @@ DeviceStatus::DeviceStatus(HINSTANCE hInst) {
   w.hbrBackground = (HBRUSH) (COLOR_BTNFACE + 1);
   RegisterClassEx(&w);
 
-  DWORD ws = WS_VISIBLE | WS_POPUP | WS_CAPTION;
-
+  DWORD ws = WS_POPUP | WS_CAPTION;
+  MONITORINFO mi;
+  POINT p;
   RECT r;
-  r.left = r.top = 0;
+
+  GetCursorPos(&p);
+  mi.cbSize = sizeof(MONITORINFO);
+  HMONITOR hMon = MonitorFromPoint(p, MONITOR_DEFAULTTONEAREST);
+  GetMonitorInfo(hMon, &mi);
+
+  r.left = mi.rcWork.left + 10;
+  r.top = mi.rcWork.top + 10;
   r.right = 404;
   r.bottom = 325;
   AdjustWindowRect(&r, ws, FALSE);
 
-  hWnd = CreateWindow(DevStatClassName, L"XInput Status", ws, 10, 10, r.right, r.bottom, NULL, NULL, hInst, NULL);
+  hWnd = CreateWindow(DevStatClassName, L"XInput Status", ws, r.left, r.top + 10, r.right, r.bottom, NULL, NULL, hInst, NULL);
 
-  hFont = CreateFont(
-    14, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
-    CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, TEXT("MS Shell Dlg"));
+  hFont = CreateFont(14, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
+    DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
+    CLEARTYPE_QUALITY, VARIABLE_PITCH, TEXT("MS Shell Dlg"));
 
-  tbLT = CreateTrackbar(hWnd, hInst, 3, 3, 102, 15, 0, 255);
+  tbLT = CreateTrackbar(hWnd, hInst, 3, 3, 102, 15, -255, 0);
   tbRT = CreateTrackbar(hWnd, hInst, 291, 3, 102, 15, 0, 255);
   tbLM = CreateTrackbar(hWnd, hInst, 3, 276, 102, 15, 0, 65535);
   tbRM = CreateTrackbar(hWnd, hInst, 291, 276, 102, 15, 0, 65535);
@@ -296,17 +387,22 @@ DeviceStatus::DeviceStatus(HINSTANCE hInst) {
   cbLT = CreateToggleButton(hWnd, hInst, 3, 24, 102, 30, L"LT");
   cbRT = CreateToggleButton(hWnd, hInst, 291, 24, 102, 30, L"RT");
 
+  pText = CreateWindowEx(0, L"STATIC", L"STATUS", WS_CHILD | WS_VISIBLE | SS_CENTER,
+    111, 3, 174, 15, hWnd, NULL, hInst, NULL);
   pLStick = CreateWindowEx(0, L"STATIC", L"LStick", WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
     3, 96, 102, 102, hWnd, NULL, hInst, NULL);
   pRStick = CreateWindowEx(0, L"STATIC", L"RStick", WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
     220, 168, 102, 102, hWnd, NULL, hInst, NULL);
   pController = CreateWindowEx(0, L"STATIC", L"XBOX", WS_CHILD | WS_VISIBLE | SS_NOTIFY | SS_OWNERDRAW,
     173, 32, 51, 51, hWnd, NULL, hInst, NULL);
+  pBattery = CreateWindowEx(0, L"STATIC", L"BATTERY", WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
+    184, 96, 28, 20, hWnd, NULL, hInst, NULL);
 
-  int controlCount = 16;
+  // Apply font to relevant controls
+  int controlCount = 21;
   HWND controls[] = {
     cbA, cbB, cbX, cbY, cbBack, cbStart, cbLB, cbRB, cbLT, cbRT, cbLS, cbRS,
-    cbDUP, cbDLT, cbDDN, cbDRT
+    cbDUP, cbDLT, cbDDN, cbDRT, pText, pLStick, pRStick, pController, pBattery
   };
 
   for(int i = 0; i < controlCount; i++)
@@ -337,6 +433,8 @@ DeviceStatus::~DeviceStatus(void) {
   DestroyWindow(cbRT);
   DestroyWindow(cbLS);
   DestroyWindow(cbRS);
+  DestroyWindow(pText);
+  DestroyWindow(pBattery);
   DestroyWindow(pLStick);
   DestroyWindow(pRStick);
   DestroyWindow(pController);
