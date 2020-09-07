@@ -57,9 +57,6 @@
     <ClInclude Include="XDinputEffect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="123.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -80,7 +80,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="123.h" />
     <ClInclude Include="DeviceStatus.h" />
     <ClInclude Include="dll.h" />
     <ClInclude Include="JoyConfig.h" />
