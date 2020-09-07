@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <windows.h>
 #include <XInput.h>
+#include <math.h>
 
 // Some hack trick to export functions with unmangled names
 #define C_EXPORT comment(linker, "/EXPORT:" __FUNCTION__ "=" __FUNCDNAME__)

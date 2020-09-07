@@ -8,13 +8,15 @@ XDinputDevice::XDinputDevice(int iIndex, BOOL isAnsi) {
   printf("[%d] new XDinputDevice%c\n", iIndex, isAnsi ? 'A' : 'W');
 
   ZeroMemory(&state, sizeof(XINPUT_STATE));
+  XInputGetState(iIndex, &state);
+
   thisIndex = iIndex;
   IsAcquired = FALSE;
   IsAnsi = isAnsi;
   IsPolled = FALSE;
   absoluteMode = TRUE;
 
-  for(int i = 0; i < 16; i++)
+  for(int i = 0; i < MAX_EFFECTS; i++)
     thisEffect[i] = NULL;
 
   effectsUsed = 0;
@@ -91,7 +93,7 @@ const DWORD objOffs[] = { // dwOfs
    0,  4, 12, 16, 24, 28,
   48, 49, 50, 51, 52, 53,
   54, 55, 56, 57, 58, 59,
-  60, 61, 32
+  32, 36, 40
 };
 const DWORD objFFMaxForce[] = { // dwFFMaxForce
   0, 0, 0, 0, 0, 0,
@@ -137,11 +139,11 @@ HRESULT WINAPI XDinputDevice::QueryInterface(REFIID riid, LPVOID *ppvObject) {
   } else
   if(riid == IID_IDirectInputDevice2A) {
     puts("  IID_IDirectInputDevice2A");
-    *ppvObject = (IDirectInputDevice2A*) new XDinputDeviceLegacy(thisIndex, TRUE);
+    *ppvObject = (LPDIRECTINPUTDEVICE2A) new XDinputDevice(thisIndex, TRUE);
   } else
   if(riid == IID_IDirectInputDevice2W) {
     puts("  IID_IDirectInputDevice2W");
-    *ppvObject = (XDinputDevice*) new XDinputDeviceLegacy(thisIndex, FALSE);
+    *ppvObject = (LPDIRECTINPUTDEVICEW*) new XDinputDevice(thisIndex, FALSE);
   } else
   if(riid == IID_IDirectInputDevice7A) {
     puts("  IID_IDirectInputDevice7A");
@@ -488,121 +490,155 @@ HRESULT XDinputDevice::Unacquire(void) {
 }
 
 HRESULT XDinputDevice::GetDeviceState(DWORD cbData, LPVOID lpvData) {
-  //printf("[%d] GetDeviceState\n", thisIndex);
+  printf("[%d] GetDeviceState\n", thisIndex); // too spammy
   Poll();
 
-  DIJOYSTATE2 s;
-  float valueLX = limitValue(-1, 1, (state.Gamepad.sThumbLX / 32768.0f) - restingLX);
-  float valueLY = limitValue(-1, 1, (state.Gamepad.sThumbLY / 32768.0f) - restingLY);
-  float valueRX = limitValue(-1, 1, (state.Gamepad.sThumbRX / 32768.0f) - restingRX);
-  float valueRY = limitValue(-1, 1, (state.Gamepad.sThumbRY / 32768.0f) - restingRY);
-  float valueLT = limitValue(0, 1, (state.Gamepad.bLeftTrigger / 255.0f) - restingLT);
-  float valueRT = limitValue(0, 1, (state.Gamepad.bRightTrigger / 255.0f) - restingRT);
-
-  ZeroMemory(&s, sizeof(DIJOYSTATE2));
+  float valueLX = limitValue(-1, 1, sin(state.Gamepad.sThumbLX / 32768.0f) - restingLX);
+  float valueLY = limitValue(-1, 1, sin(state.Gamepad.sThumbLY / 32768.0f) - restingLY);
+  float valueRX = limitValue(-1, 1, sin(state.Gamepad.sThumbRX / 32768.0f) - restingRX);
+  float valueRY = limitValue(-1, 1, sin(state.Gamepad.sThumbRY / 32768.0f) - restingRY);
+  float valueLT = limitValue( 0, 1, sin(state.Gamepad.bLeftTrigger / 255.0f) - restingLT);
+  float valueRT = limitValue( 0, 1, sin(state.Gamepad.bRightTrigger / 255.0f) - restingRT);
+  LONG lx, ly, rx, ry, lt, rt;
+  DWORD pov;
+  BYTE btn[32] = {0};
+  int i;
 
   // Map sticks to the caller's desired ranges
   if(state.Gamepad.sThumbLX < 0)
-    s.lX = (LONG) lerp(0, AxisRangeMin, -valueLX);
+    lx = (LONG) lerp(0, AxisRangeMin, -valueLX);
   else
-    s.lX = (LONG) lerp(0, AxisRangeMax, valueLX);
+    lx = (LONG) lerp(0, AxisRangeMax, valueLX);
 
   if(state.Gamepad.sThumbLY < 0)
-    s.lY = (LONG) lerp(0, AxisRangeMax, -valueLY);
+    ly = (LONG) lerp(0, AxisRangeMax, -valueLY);
   else
-    s.lY = (LONG) lerp(0, AxisRangeMin, valueLY);
+    ly = (LONG) lerp(0, AxisRangeMin, valueLY);
 
   if(state.Gamepad.sThumbRX < 0)
-    s.lRx = (LONG) lerp(0, AxisRangeMin, -valueRX);
+    rx = (LONG) lerp(0, AxisRangeMin, -valueRX);
   else
-    s.lRx = (LONG) lerp(0, AxisRangeMax, valueRX);
+    rx = (LONG) lerp(0, AxisRangeMax, valueRX);
 
   if(state.Gamepad.sThumbRY < 0)
-    s.lRy = (LONG) lerp(0, AxisRangeMax, -valueRY);
+    ry = (LONG) lerp(0, AxisRangeMax, -valueRY);
   else
-    s.lRy = (LONG) lerp(0, AxisRangeMin, valueRY);
+    ry = (LONG) lerp(0, AxisRangeMin, valueRY);
 
   // ...same for triggers
-  s.rglSlider[0] = (LONG) lerp(0, AxisRangeMax, valueLT);
-  s.rglSlider[1] = (LONG) lerp(0, AxisRangeMax, valueRT);
+  lt = (LONG) lerp(0, AxisRangeMax, valueLT);
+  rt = (LONG) lerp(0, AxisRangeMax, valueRT);
 
   // Set POV direction
   switch(state.Gamepad.wButtons & 15) {
     case (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_RIGHT):
-      s.rgdwPOV[0] = 4500;
+      pov = 4500;
       break;
 
     case (XINPUT_GAMEPAD_DPAD_RIGHT | XINPUT_GAMEPAD_DPAD_DOWN):
-      s.rgdwPOV[0] = 13500;
+      pov = 13500;
       break;
 
     case (XINPUT_GAMEPAD_DPAD_DOWN | XINPUT_GAMEPAD_DPAD_LEFT):
-      s.rgdwPOV[0] = 22500;
+      pov = 22500;
       break;
 
     case (XINPUT_GAMEPAD_DPAD_LEFT | XINPUT_GAMEPAD_DPAD_UP):
-      s.rgdwPOV[0] = 31500;
+      pov = 31500;
       break;
 
     case XINPUT_GAMEPAD_DPAD_UP:
-      s.rgdwPOV[0] = 0;
+      pov = 0;
       break;
 
     case XINPUT_GAMEPAD_DPAD_RIGHT:
-      s.rgdwPOV[0] = 9000;
+      pov = 9000;
       break;
 
     case XINPUT_GAMEPAD_DPAD_DOWN:
-      s.rgdwPOV[0] = 18000;
+      pov = 18000;
       break;
 
     case XINPUT_GAMEPAD_DPAD_LEFT:
-      s.rgdwPOV[0] = 27000;
+      pov = 27000;
       break;
 
     default:
-      s.rgdwPOV[0] = -1;
+      pov = -1;
       break;
   }
 
   // Fill in pressed buttons
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
-    s.rgbButtons[0] = 128;
+    btn[0] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_B)
-    s.rgbButtons[1] = 128;
+    btn[1] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_X)
-    s.rgbButtons[2] = 128;
+    btn[2] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_Y)
-    s.rgbButtons[3] = 128;
+    btn[3] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_START)
-    s.rgbButtons[4] = 128;
+    btn[4] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK)
-    s.rgbButtons[5] = 128;
+    btn[5] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
-    s.rgbButtons[6] = 128;
+    btn[6] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
-    s.rgbButtons[7] = 128;
+    btn[7] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB)
-    s.rgbButtons[8] = 128;
+    btn[8] = 128;
   if(state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB)
-    s.rgbButtons[9] = 128;
+    btn[9] = 128;
 
   // Map triggers to buttons 11 & 12
   if(valueLT >= 0.8f)
-    s.rgbButtons[10] = 128;
+    btn[10] = 128;
 
   if(valueRT >= 0.8f)
-    s.rgbButtons[11] = 128;
+    btn[11] = 128;
 
   IsPolled = FALSE;
 
+  // Copy results manually because array pointers screw this up
   if(dataFormat == 1) {
-    memcpy(lpvData, &s, sizeof(DIJOYSTATE));
+    LPDIJOYSTATE d = (LPDIJOYSTATE) lpvData;
+
+    d->lX = lx;
+    d->lY = ly;
+    d->lRx = rx;
+    d->lRy = ry;
+    d->rglSlider[0] = lt;
+    d->rglSlider[1] = rt;
+    d->rgdwPOV[0] = pov;
+
+    for(i = 0; i < 32; i++)
+      d->rgbButtons[i] = (i < 12 ? btn[i] : 0);
+
+    d->lZ = d->lRz = 0;
     return DI_OK;
   }
 
   if(dataFormat == 2) {
-    memcpy(lpvData, &s, sizeof(DIJOYSTATE2));
+    LPDIJOYSTATE2 d = (LPDIJOYSTATE2) lpvData;
+
+    d->lX = lx;
+    d->lY = ly;
+    d->lRx = rx;
+    d->lRy = ry;
+    d->rglSlider[0] = lt;
+    d->rglSlider[1] = rt;
+    d->rgdwPOV[0] = pov;
+
+    for(i = 0; i < 128; i++)
+      d->rgbButtons[i] = (i < 12 ? btn[i] : 0);
+    
+    d->lZ = d->lRz = 0;
+    d->lVX = d->lVY = d->lVZ = d->lVRx = d->lVRy = d->lVRz = 0;
+    d->lAX = d->lAY = d->lAZ = d->lARx = d->lARy = d->lFRz = 0;
+    d->lFX = d->lFY = d->lFZ = d->lFRx = d->lFRy = d->lFRz = 0;
+    d->rglVSlider[0] = d->rglASlider[0] = d->rglFSlider[0] = 0;
+    d->rgdwPOV[1] = d->rgdwPOV[2] = d->rgdwPOV[3] = 0;
+
     return DI_OK;
   }
 
@@ -717,11 +753,29 @@ HRESULT XDinputDevice::GetObjectInfo(LPDIDEVICEOBJECTINSTANCEW pdidoi, DWORD dwO
             doi->wReportId = 0;
           }
 
-          printf("    0x%X: %s\n", doi->dwOfs, doi->tszName);
+          printf("    $%X: %s\n", doi->dwOfs, doi->tszName);
           return DI_OK;
         }
 
-        printf("    0x%X: Not found\n", dwObj);
+        doi->guidType = GUID_NULL;
+        doi->dwOfs = dwObj;
+        doi->dwType = DIDFT_NODATA;
+        doi->dwFlags = 0;
+        sprintf_s(doi->tszName, MAX_PATH, XDOA_UNDEF);
+
+        if(DinputVersion >= 0x0500) {
+          doi->dwFFMaxForce = 0;
+          doi->dwFFForceResolution = 0;
+          doi->wCollectionNumber = 0;
+          doi->wDesignatorIndex = 0;
+          doi->wUsagePage = 0;
+          doi->wUsage = 0;
+          doi->dwDimension = 0;
+          doi->wExponent = 0;
+          doi->wReportId = 0;
+        }
+
+        printf("    $%X: Not found\n", dwObj);
         return DIERR_OBJECTNOTFOUND;
       }
 
@@ -773,11 +827,29 @@ HRESULT XDinputDevice::GetObjectInfo(LPDIDEVICEOBJECTINSTANCEW pdidoi, DWORD dwO
             doi->wReportId = 0;
           }
 
-          wprintf(L"    0x%X: %s\n", doi->dwOfs, doi->tszName);
+          wprintf(L"    $%X: %s\n", doi->dwOfs, doi->tszName);
           return DI_OK;
         }
 
-        printf("    0x%X: Not found\n", dwObj);
+        doi->guidType = GUID_NULL;
+        doi->dwOfs = dwObj;
+        doi->dwType = DIDFT_NODATA;
+        doi->dwFlags = 0;
+        swprintf_s(doi->tszName, MAX_PATH, XDOW_UNDEF);
+
+        if(DinputVersion >= 0x0500) {
+          doi->dwFFMaxForce = 0;
+          doi->dwFFForceResolution = 0;
+          doi->wCollectionNumber = 0;
+          doi->wDesignatorIndex = 0;
+          doi->wUsagePage = 0;
+          doi->wUsage = 0;
+          doi->dwDimension = 0;
+          doi->wExponent = 0;
+          doi->wReportId = 0;
+        }
+
+        printf("    $%X: Not found\n", dwObj);
         return DIERR_OBJECTNOTFOUND;
       }
 
@@ -854,7 +926,7 @@ HRESULT XDinputDevice::Initialize(HINSTANCE, DWORD, REFGUID) {
 
 HRESULT XDinputDevice::CreateEffect(REFGUID rGuid, LPCDIEFFECT lpEff, LPDIRECTINPUTEFFECT *lpDeff, LPUNKNOWN pUnkOuter) {
   printf("[%d] CreateEffect\n", thisIndex);
-  if(effectsUsed == 16)
+  if(effectsUsed == MAX_EFFECTS)
     return DIERR_DEVICEFULL;
 
   if(rGuid == GUID_ConstantForce) {
@@ -911,9 +983,6 @@ HRESULT XDinputDevice::SendForceFeedbackCommand(DWORD dwFlags) {
   printf("[%d] SendForceFeedbackCommand\n", thisIndex);
   int i;
 
-  if(thisEffect == NULL)
-    return DI_NOEFFECT;
-
   if(dwFlags & (DISFFC_RESET | DISFFC_STOPALL | DISFFC_PAUSE | DISFFC_SETACTUATORSOFF))
     for(i = 0; i < effectsUsed; i++)
       thisEffect[i]->Stop();
@@ -925,7 +994,7 @@ HRESULT XDinputDevice::SendForceFeedbackCommand(DWORD dwFlags) {
     }
 
     effectsUsed = 0;
-    return DI_OK;
+    return (i == 0 ? DI_NOEFFECT : DI_OK);
   }
 
   if(dwFlags & DISFFC_SETACTUATORSON)
@@ -936,7 +1005,7 @@ HRESULT XDinputDevice::SendForceFeedbackCommand(DWORD dwFlags) {
     for(i = 0; i < effectsUsed; i++)
       thisEffect[i]->Enabled = FALSE;
 
-  return DI_OK;
+  return (i == 0 ? DI_NOEFFECT : DI_OK);
 }
 
 HRESULT XDinputDevice::EnumCreatedEffectObjects(LPDIENUMCREATEDEFFECTOBJECTSCALLBACK lpCallback, LPVOID pvRef, DWORD) {

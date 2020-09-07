@@ -8,10 +8,10 @@
     <LocalDebuggerWorkingDirectory>C:\ProgramFiles\MiniCarRacing</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LocalDebuggerCommand>C:\ProgramFiles\BuzzingCars\buzzingcars.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>C:\ProgramFiles\MiniCarRacing\minicar.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LocalDebuggerWorkingDirectory>C:\ProgramFiles\BuzzingCars\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>C:\ProgramFiles\MiniCarRacing</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

@@ -1,3 +1,5 @@
+///////////////////////////////////////////////////////////////////////
+
 #include "stdafx.h"
 #include <dinput.h>
 
@@ -11,15 +13,16 @@
 ///////////////////////////////////////////////////////////////////////
 
 typedef HRESULT (WINAPI* dinputDirectInputCreateEx)(HINSTANCE hInst, DWORD dwVersion, REFIID riidGUID, LPVOID* ppvOut, LPUNKNOWN punkOuter);
-static dinputDirectInputCreateEx directInputCreateEx;
+static dinputDirectInputCreateEx directInputCreateEx = NULL;
 
 typedef HRESULT (WINAPI* dinputDirectInputCreate)(HINSTANCE hInst, DWORD dwVersion, LPVOID* ppvOut, LPUNKNOWN punkOuter);
-static dinputDirectInputCreate directInputCreate;
+static dinputDirectInputCreate directInputCreate = NULL;
 
 static HMODULE hDinputDll = NULL;
-static LPVOID lpdi, xdinput = NULL;
+static LPVOID lpdi = NULL;
+static LPVOID xdinput = NULL;
 static DeviceStatus* hDevStat = NULL;
-DWORD DinputVersion;
+DWORD DinputVersion = 0;
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -62,7 +65,9 @@ void OpenConsole() {
   MoveWindow(hCon, rd.right + 5, rd.top, rc.right - rc.left, rc.bottom - rc.top, TRUE);
 }
 #else
-#define OpenConsole() /* DUMMY */
+#define OpenConsole()  { /* DUMMY */ }
+#define puts(x)        { /* DUMMY */ }
+#define printf(x, ...) { /* DUMMY */ }
 #endif
 
 ///////////////////////////////////////////////////////////////////////
@@ -78,7 +83,7 @@ HRESULT WINAPI DirectInput8Create(HINSTANCE hInst, DWORD dwVersion, REFIID riidG
 #pragma C_EXPORT
   BOOL isAnsi = (riidGUID == IID_IDirectInput8A);
   DinputVersion = dwVersion;
-  HRESULT hr;
+  HRESULT hr = 0;
 
   if(dwVersion < 0x0800)
     return DIERR_OLDDIRECTINPUTVERSION;
@@ -105,7 +110,7 @@ HRESULT WINAPI DirectInput8Create(HINSTANCE hInst, DWORD dwVersion, REFIID riidG
 HRESULT WINAPI DirectInputCreateA(HINSTANCE hInst, DWORD dwVersion, LPVOID* ppvOut, LPUNKNOWN pUnkOuter) {
 #pragma C_EXPORT
   DinputVersion = dwVersion;
-  HRESULT hr;
+  HRESULT hr = 0;
 
 #ifdef _DEBUG
   puts("Creating DirectInputA instance");
@@ -141,7 +146,7 @@ HRESULT WINAPI DirectInputCreateA(HINSTANCE hInst, DWORD dwVersion, LPVOID* ppvO
 HRESULT WINAPI DirectInputCreateW(HINSTANCE hInst, DWORD dwVersion, LPVOID* ppvOut, LPUNKNOWN pUnkOuter) {
 #pragma C_EXPORT
   DinputVersion = dwVersion;
-  HRESULT hr;
+  HRESULT hr = 0;
 
 #ifdef _DEBUG
   puts("Creating DirectInputW instance");
@@ -236,7 +241,6 @@ STDAPI DllCanUnloadNow(void) {
 }
 
 ///////////////////////////////////////////////////////////////////////
-
 BOOL APIENTRY DllMain(HMODULE hInst, DWORD dwReason, LPVOID lpReserved) {
   switch(dwReason) {
     case DLL_PROCESS_ATTACH:
@@ -272,4 +276,3 @@ BOOL APIENTRY DllMain(HMODULE hInst, DWORD dwReason, LPVOID lpReserved) {
 
   return FALSE;
 }
-

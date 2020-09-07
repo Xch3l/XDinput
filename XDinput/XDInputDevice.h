@@ -3,6 +3,8 @@
 #include <dinput.h>
 #include "XDinputEffect.h"
 
+#define MAX_EFFECTS 32
+
 class XDinputDevice : public IDirectInputDevice8 {
   public:
     // IUnknown implements
@@ -48,7 +50,7 @@ class XDinputDevice : public IDirectInputDevice8 {
 
   private:
     int referenceCount, effectsUsed;
-    XDinputEffect* thisEffect[16];
+    XDinputEffect* thisEffect[MAX_EFFECTS];
     DIOBJECTDATAFORMAT* dataFormatValues;
     DWORD dataFormat;
 

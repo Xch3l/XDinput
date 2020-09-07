@@ -4,6 +4,7 @@
 #define XDINPUT_EFFECTNAMEA    "Constant Force"
 
 // Device object names
+#define XDOA_UNDEF "Undefined"
 #define XDOA_LX "Left Thumb X"
 #define XDOA_LY "Left Thumb Y"
 #define XDOA_RX "Right Thumb X"
@@ -31,6 +32,7 @@
 #define XDINPUT_INSTANCENAMEW  TEXT(XDINPUT_INSTANCENAMEA)
 #define XDINPUT_PRODUCTNAMEW   TEXT(XDINPUT_PRODUCTNAMEA)
 #define XDINPUT_EFFECTNAMEW    TEXT(XDINPUT_EFFECTNAMEA)
+#define XDOW_UNDEF             TEXT(XDOA_UNDEF)
 #define XDOW_LX                TEXT(XDOA_LX)
 #define XDOW_LY                TEXT(XDOA_LY)
 #define XDOW_RX                TEXT(XDOA_RX)
